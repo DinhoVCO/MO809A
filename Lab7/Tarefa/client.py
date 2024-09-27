@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras import layers
 from tensorflow.keras.datasets import fashion_mnist
-
+from tensorflow.keras.optimizers import RMSprop
 
 from tensorflow.keras.models import Model
 import grpc
@@ -56,7 +56,7 @@ def get_pairs(images, labels):
     digit_indices = [np.where(labels == i)[0] for i in range(10)]
 
     pairs, y = create_pairs(images, digit_indices)
-    y = y.astype(np.float32)
+    y = y.astype(np.int32)
 
     return pairs, y
 
@@ -84,63 +84,65 @@ def create_partial_model(input_layer):
     x = layers.Flatten()(x)
     x = layers.Dense(128)(x)
 
-    return Model(inputs=input_, outputs=x)
+    return Model(inputs=input_layer, outputs=x)
 
-"""
-def create_partial_model(input_layer):
-    layer1 = layers.Conv2D(32, (3, 3), activation='relu')(input_layer)
-    layer2 = layers.MaxPooling2D((2, 2))(layer1)
-    layer3 = layers.Conv2D(64, (3, 3), activation='relu')(layer2)
-    layer4 = layers.Dense(128, activation='relu')(layer3)
-    return Model(inputs=input_layer, outputs=layer4)
-"""
 
 def send_activations_to_server(stub, activations, labels, batch_size, client_id):
     activations_list = activations.numpy().flatten()
-
+    #print(f'activa: {activations_list}')
     client_to_server_msg = pb2.ClientToServer()
     client_to_server_msg.activations.extend(activations_list)
     client_to_server_msg.labels.extend(labels.flatten())
     client_to_server_msg.batch_size = batch_size
     client_to_server_msg.client_id = client_id
+    print(f'activa: {activations_list}')
+    print(f'L: {labels.flatten()}')
+    print(f'client: {client_id}')
     
     server_response = stub.SendClientActivations(client_to_server_msg)
 
     return server_response
 
-def train_step(model, x_batch, y_batch, batch, optimizer, epoch, stub):
+def train_step(model, x_batch, y_batch, batch, optimizer, stub):
     
-    activations, tape     = get_activations(model, x_batch)
+    activations, tape     = get_activations(model, np.expand_dims(x_batch, axis=0))
+    print(f"Activaciones obtenidas para la imagen : {activations}")
+    print(f"Forma de las activaciones: {activations.shape}")
+
     flattened_activations = tf.reshape(activations, (activations.shape[0], -1))
 
     latencia_start  = time.time()
+    print("aquiii")
     server_response = send_activations_to_server(stub, flattened_activations, y_batch, len(x_batch), 1)
     latencia_end    = time.time()
 
-    print("Received response from server")
-    activations_grad = tf.convert_to_tensor(server_response.gradients, dtype=tf.float32)
-    activations_grad = tf.reshape(activations_grad, activations.shape)
+    print(f"Received response from server:")
+    loss = server_response.loss
+    loss_tensor = tf.convert_to_tensor(loss, dtype=tf.float32)  # or dtype=tf.int32
+
+    print(f'loss rec:{loss_tensor}')
+    #activations_grad = tf.convert_to_tensor(server_response.gradients, dtype=tf.float32)
+    #activations_grad = tf.reshape(activations_grad, activations.shape)
 
     client_gradient = tape.gradient(
-        activations,
-        model.trainable_variables,
-        output_gradients=activations_grad
+        loss_tensor,
+        model.trainable_variables
     )
 
-    bytes_tx  = flattened_activations.numpy().nbytes
-    bytes_rx  = activations_grad.numpy().nbytes
+    #bytes_tx  = flattened_activations.numpy().nbytes
+    #bytes_rx  = activations_grad.numpy().nbytes
     latencia  = latencia_end - latencia_start
-    loss      = server_response.loss
+    loss      = loss_tensor
     acc       = server_response.acc
 
     print(f"Latencia: {latencia} segundos")
-    print(f"Data Tx: {bytes_tx / 2**20} MB")
-    print(f"Data Rx: {bytes_rx / 2**20} MB")
+    #print(f"Data Tx: {bytes_tx / 2**20} MB")
+    #print(f"Data Rx: {bytes_rx / 2**20} MB")
 
     optimizer.apply_gradients(zip(client_gradient, model.trainable_variables))
     
     with open('results.csv', 'a') as f:
-        f.write(f"{epoch}, {batch}, {loss}, {acc}, {latencia}, {bytes_tx / 2**20}, {bytes_rx / 2**20}\n")
+        f.write(f"{batch}, {loss}, {acc}, {latencia}\n")
 
 def main():
 
@@ -158,7 +160,7 @@ def main():
     test_pairs, test_y = get_pairs(test_images, test_labels)
 
     partial_model      = create_partial_model(layers.Input(shape=(28, 28, 1)))
-    client_optimizer   = tf.keras.optimizers.Adam()
+    client_optimizer   = RMSprop()
     MAX_MESSAGE_LENGTH = 20 * 1024 * 1024 *10
     
     # Configuração da conexão gRPC
@@ -168,18 +170,16 @@ def main():
         ])
     stub = pb2_grpc.SplitLearningStub(channel)
 
-    for epoch in range(10):
-        batch_size = 64
-        n_batches  = train_images.shape[0]//batch_size
-        
-        for batch in range(n_batches):
-            print(f"Epoch {epoch} - Batch {batch}/{n_batches}")
-            
-            X_batch  = train_images[batch_size * batch : batch_size * (batch+1)]
-            y_batch  = train_images[batch_size * batch : batch_size * (batch+1)]
 
-            train_step(partial_model, X_batch, y_batch, batch, client_optimizer, epoch, stub)
+    for batch in range(1):
+        print(f"image {batch}")
         
+        X_batch  = train_pairs[batch][0]
+        image_with_channel = np.expand_dims(X_batch, axis=-1)
+        y_batch  = train_y[batch]
+
+        train_step(partial_model, image_with_channel, y_batch, batch, client_optimizer, stub)
+    
     
 if __name__ == '__main__':
     main()
