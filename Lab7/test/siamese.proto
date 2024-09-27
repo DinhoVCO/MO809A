@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+service Siamese {
+  rpc SendEmbedding (EmbeddingRequest) returns (EmbeddingResponse);
+}
+
+message EmbeddingRequest {
+  repeated float embedding = 1;  // El embedding calculado por el cliente
+  string client_id = 2;          // ID del cliente
+}
+
+message EmbeddingResponse {
+  string message = 1;
+  float loss = 2;  // Los pesos actualizados que el servidor enviará
+}
