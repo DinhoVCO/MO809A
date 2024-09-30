@@ -80,7 +80,7 @@ def train_step(model, x_batch, y_batch, step, optimizer, epoch, stub,client_id):
     )
     
     # Sumar ambos gradientes ya que las dos ramas comparten pesos
-    total_grads = [client_gradient1 + client_gradient2 for client_gradient1, client_gradient2 in zip(client_gradient1, client_gradient2)]
+    total_grads = [g1 + g2 for g1, g2 in zip(client_gradient1, client_gradient2)]
 
     loss      = server_response.loss
     optimizer.apply_gradients(zip(total_grads, model.trainable_variables))
@@ -122,11 +122,11 @@ def main(client_id):
             ('grpc.max_receive_message_length', MAX_MESSAGE_LENGTH),
         ])
     stub = pb2_grpc.SiameseStub(channel)
-    client_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
+    client_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
     # Número de épocas y tamaño de lote
-    epochs = 10
-    batch_size = 64
+    epochs = 4
+    batch_size = 128
     for epoch in range(epochs):
         print(f"Epoch {epoch + 1}/{epochs}")
         for step, (batch_pairs, batch_labels) in enumerate(batch_generator(train_pairs, train_pairs_labels, batch_size)):
