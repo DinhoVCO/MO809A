@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package siamese;
+
+message ClientToServer {
+    repeated float activations1 = 1;
+    repeated float activations2 = 2;
+    repeated int32 labels      = 3;
+    int32 batch_size           = 4;
+    int32 client_id            = 5;
+}
+
+message ServerToClient {
+    repeated float gradients1 = 1;
+    repeated float gradients2 = 2;
+    float loss               = 3;
+}
+
+service Siamese {
+    rpc SendClientActivations(ClientToServer) returns (ServerToClient) {}
+}
