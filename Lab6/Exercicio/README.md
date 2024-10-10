@@ -2,8 +2,6 @@
 
 
 
-Agora você deve implementar cada rede em processos (i.e., clientes) diferentes e reportar o vetor de saída via gRPC para um servidor para calcular a distância e atualizar os gradientes da camada Lambda que define a similaridade das camadas.
-
 Este projeto implementa uma rede siamesa utilizando o dataset **Fashion MNIST** com o objetivo de comparar a similaridade entre duas imagens. Usamos **gRPC** para criar um sistema distribuído, onde os clientes reportam o vetor de saída via gRPC para um servidor para calcular a distância e atualizar os gradientes da camada Lambda que define a similaridade das camadas.
 
 ## Descrição do Projeto
