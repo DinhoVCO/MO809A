@@ -43,38 +43,41 @@ class SplitLearningService(pb2_grpc.SplitLearningServicer):
 
         # Recebe ativações do cliente
         activations = tf.convert_to_tensor(request.activations, dtype=tf.float32)
-        print(f'Activations shape: {activations.shape}')
         activations = tf.reshape(activations, (64, 15, 15, 32)) 
-        print(f'reshape activations shape: {activations.shape}')
         self.last_input = activations
         # Realiza feedforward em M2
         activations_m2 = self.server_model(activations)
-        print(f'Activations m2 shape: {activations_m2.shape}')
         # Envia ativações de M2 de volta ao cliente
         response = pb2.ActivationsResponse()
 
-        print('test')
         response.activations.extend(activations_m2.numpy().flatten())
-        print('test2')
         return response
 
     def SendGradient(self, request, context):
         # Recebe gradientes do cliente
-        gradients_m3 = tf.convert_to_tensor(request.gradients, dtype=tf.float32)
-        gradients_m3 = tf.reshape(gradients_m3, (64, 128))
+        activations_grad = tf.convert_to_tensor(request.gradients, dtype=tf.float32)
+        activations_grad = tf.reshape(activations_grad, (64, 128))
 
         # Atualiza o modelo M2 com o backpropagation usando os gradientes
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(persistent=True) as tape:
+            tape.watch(self.last_input)
             # Calcula as ativações em M2
             activations_m2 = self.server_model(self.last_input)
-            loss = tf.reduce_mean(tf.square(gradients_m3 - activations_m2))
+            loss = tf.reduce_mean(tf.square( activations_m2 - activations_grad))
         
-        # Calcular gradientes e atualizar pesos
+        # Calcula os gradientes com relação aos pesos de M2
         grads_m2 = tape.gradient(loss, self.server_model.trainable_variables)
-        self.optimizer.apply_gradients(zip(grads_m2, self.server_model.trainable_variables))
         
-        # Enviar gradientes para M1 de volta ao cliente
-        response = pb2.GradientsResponse(gradients=grads_m2[0].numpy().flatten().tolist())
+        # Aplica os gradientes para atualizar os pesos de M2
+        self.optimizer.apply_gradients(zip(grads_m2, self.server_model.trainable_variables))
+
+        # Agora, calcule os gradientes das ativações de M1 (para enviar de volta ao cliente)
+        # Isso permite que o cliente continue o backpropagation em M1
+        grads_activations_m1 = tape.gradient(loss, self.last_input)
+        response = pb2.GradientsResponse()
+
+        response.gradients.extend(grads_activations_m1.numpy().flatten())
+        # Enviar gradientes das ativações de M1 de volta ao cliente
         return response
 
 

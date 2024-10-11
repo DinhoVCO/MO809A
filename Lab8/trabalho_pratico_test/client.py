@@ -24,45 +24,55 @@ def create_partial_model_m3(input_layer):
     layer6 = layers.Dense(10, activation='softmax')(layer5) 
     return Model(inputs=input_layer, outputs=layer6)
 
+def get_activations(model, X):
+    with tf.GradientTape(persistent=True) as tape:
+        activations = model(X)
+    return activations, tape
 
 def train_step(model_m1, model_m3, x_batch, y_batch, batch, optimizer, epoch, stub):
-    print(f'x_batch shape: {x_batch.shape}')
-    activations_m1 = model_m1(x_batch)
-    print(f'Activations m1 shape: {activations_m1.shape}')
+
+    activations_m1, tape_m1    = get_activations(model_m1, x_batch)
+    #activations_m1 = model_m1(x_batch)
     flattened_activations_m1 = tf.reshape(activations_m1, (activations_m1.shape[0], -1))
-    print(f'Flattened activations m1 shape: {flattened_activations_m1.shape}')
     # Enviar ativações ao servidor para processar M2
     activations_list = flattened_activations_m1.numpy().flatten()
-    print(f'Activations list shape: {len(activations_list)}')
     activation_message = pb2.ActivationsRequest()
     activation_message.activations.extend(activations_list)
     response = stub.SendActivation(activation_message)
-    print(f'Received response from server:')
     # Receber as ativações processadas de M2
     activations_m2 = tf.convert_to_tensor(response.activations, dtype=tf.float32)
     activations_m2 = tf.reshape(activations_m2, (64, 128)) # -1 faz com que a dimensao seja calculada automaticamente
 
     # Forward pass no cliente (M3)
-    with tf.GradientTape() as tape:
+    with tf.GradientTape(persistent=True) as tape:
+        tape.watch(activations_m2)
         predictions = model_m3(activations_m2)
         loss        = tf.keras.losses.sparse_categorical_crossentropy(y_batch, predictions)
         loss        = tf.reduce_mean(loss)
 
-    print('backpropagation')
+    print('loss:', loss.numpy())
     # Backpropagation no cliente (M3)
     grads_m3 = tape.gradient(loss, model_m3.trainable_variables)
     optimizer.apply_gradients(zip(grads_m3, model_m3.trainable_variables))
     
-    # Enviar gradientes de M3 para o servidor processar M2
-    gradients_list_m2 = grads_m3[0].numpy().flatten()
+    # **Aqui, calcular os gradientes das ativações de M2**
+    # Esses gradientes são o que devemos enviar ao servidor
+    grads_activations_m2 = tape.gradient(loss, activations_m2)
+    # Enviar gradientes das ativações de M2 para o servidor processar o backpropagation em M2
     gradient_message = pb2.GradientsRequest()
-    gradient_message.gradients.extend(gradients_list_m2)
+    gradient_message.gradients.extend(grads_activations_m2.numpy().flatten())
     response2 = stub.SendGradient(gradient_message)
-    
-    # Receber gradientes para M1 e atualizar pesos
-    grads_m1 = np.array(response2.gradients).reshape(1, -1)
-    optimizer.apply_gradients(zip([grads_m1], model_m1.trainable_variables))
+    # Opcional: Receber gradientes para M1 e atualizar pesos no cliente (M1)
+    activations_grad = tf.convert_to_tensor(response2.gradients, dtype=tf.float32)
+    activations_grad = tf.reshape(activations_grad, (64, 15, 15, 32))
 
+    client_gradient = tape_m1.gradient(
+        activations_m1,
+        model_m1.trainable_variables,
+        output_gradients=activations_grad
+    )
+    optimizer_m1 = tf.keras.optimizers.Adam()
+    optimizer_m1.apply_gradients(zip(client_gradient, model_m1.trainable_variables))
 
 def main():
 
