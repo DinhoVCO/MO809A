@@ -41,10 +41,10 @@ class SplitLearningService(pb2_grpc.SplitLearningServicer):
         self.last_input = None 
 
     def SendActivation(self, request, context):
-
+        batch_size = request.batch_size
         # Recebe ativações do cliente
         activations = tf.convert_to_tensor(request.activations, dtype=tf.float32)
-        activations = tf.reshape(activations, (64, 15, 15, 32)) 
+        activations = tf.reshape(activations, (batch_size, 15, 15, 32)) 
 
         with tf.GradientTape(persistent=True) as tape:
             tape.watch(activations)
@@ -59,9 +59,10 @@ class SplitLearningService(pb2_grpc.SplitLearningServicer):
         return response
 
     def SendGradient(self, request, context):
+        batch_size = request.batch_size
         # Recebe gradientes do cliente
         activations_grad = tf.convert_to_tensor(request.gradients, dtype=tf.float32)
-        activations_grad = tf.reshape(activations_grad, (64, 128))
+        activations_grad = tf.reshape(activations_grad, (batch_size, 128))
 
         # Atualiza o modelo M2 com o backpropagation usando os gradientes
         with self.tape:
@@ -70,8 +71,6 @@ class SplitLearningService(pb2_grpc.SplitLearningServicer):
                 server_outputs, self.server_model.trainable_variables, output_gradients=activations_grad
             )
 
-        
-        
         # Aplica os gradientes para atualizar os pesos de M2
         self.optimizer.apply_gradients(zip(gradients, self.server_model.trainable_variables))
 

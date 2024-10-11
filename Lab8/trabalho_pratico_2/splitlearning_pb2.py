@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x13splitlearning.proto\x12\rsplitlearning\")\n\x12\x41\x63tivationsRequest\x12\x13\n\x0b\x61\x63tivations\x18\x01 \x03(\x02\"*\n\x13\x41\x63tivationsResponse\x12\x13\n\x0b\x61\x63tivations\x18\x01 \x03(\x02\"%\n\x10GradientsRequest\x12\x11\n\tgradients\x18\x01 \x03(\x02\"&\n\x11GradientsResponse\x12\x11\n\tgradients\x18\x01 \x03(\x02\x32\xbb\x01\n\rSplitLearning\x12W\n\x0eSendActivation\x12!.splitlearning.ActivationsRequest\x1a\".splitlearning.ActivationsResponse\x12Q\n\x0cSendGradient\x12\x1f.splitlearning.GradientsRequest\x1a .splitlearning.GradientsResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x13splitlearning.proto\x12\rsplitlearning\"=\n\x12\x41\x63tivationsRequest\x12\x13\n\x0b\x61\x63tivations\x18\x01 \x03(\x02\x12\x12\n\nbatch_size\x18\x03 \x01(\x05\"*\n\x13\x41\x63tivationsResponse\x12\x13\n\x0b\x61\x63tivations\x18\x01 \x03(\x02\"9\n\x10GradientsRequest\x12\x11\n\tgradients\x18\x01 \x03(\x02\x12\x12\n\nbatch_size\x18\x03 \x01(\x05\"&\n\x11GradientsResponse\x12\x11\n\tgradients\x18\x01 \x03(\x02\x32\xbb\x01\n\rSplitLearning\x12W\n\x0eSendActivation\x12!.splitlearning.ActivationsRequest\x1a\".splitlearning.ActivationsResponse\x12Q\n\x0cSendGradient\x12\x1f.splitlearning.GradientsRequest\x1a .splitlearning.GradientsResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,13 +32,13 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'splitlearning_pb2', _global
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_ACTIVATIONSREQUEST']._serialized_start=38
-  _globals['_ACTIVATIONSREQUEST']._serialized_end=79
-  _globals['_ACTIVATIONSRESPONSE']._serialized_start=81
-  _globals['_ACTIVATIONSRESPONSE']._serialized_end=123
-  _globals['_GRADIENTSREQUEST']._serialized_start=125
-  _globals['_GRADIENTSREQUEST']._serialized_end=162
-  _globals['_GRADIENTSRESPONSE']._serialized_start=164
-  _globals['_GRADIENTSRESPONSE']._serialized_end=202
-  _globals['_SPLITLEARNING']._serialized_start=205
-  _globals['_SPLITLEARNING']._serialized_end=392
+  _globals['_ACTIVATIONSREQUEST']._serialized_end=99
+  _globals['_ACTIVATIONSRESPONSE']._serialized_start=101
+  _globals['_ACTIVATIONSRESPONSE']._serialized_end=143
+  _globals['_GRADIENTSREQUEST']._serialized_start=145
+  _globals['_GRADIENTSREQUEST']._serialized_end=202
+  _globals['_GRADIENTSRESPONSE']._serialized_start=204
+  _globals['_GRADIENTSRESPONSE']._serialized_end=242
+  _globals['_SPLITLEARNING']._serialized_start=245
+  _globals['_SPLITLEARNING']._serialized_end=432
 # @@protoc_insertion_point(module_scope)

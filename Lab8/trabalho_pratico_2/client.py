@@ -22,12 +22,7 @@ def create_partial_model_m3(input_layer):
     layer6 = layers.Dense(10, activation='softmax')(layer5) 
     return Model(inputs=input_layer, outputs=layer6)
 
-def get_activations(model, X):
-    with tf.GradientTape(persistent=True) as tape:
-        activations = model(X)
-    return activations, tape
-
-def train_step(model_m1, model_m3, x_batch, y_batch, batch, optimizer, epoch, stub):
+def train_step(model_m1, model_m3, x_batch, y_batch, step, optimizer, epoch, stub, batch_size):
 
     with tf.GradientTape(persistent=True) as tape_m1:
 
@@ -37,10 +32,11 @@ def train_step(model_m1, model_m3, x_batch, y_batch, batch, optimizer, epoch, st
         activations_list = flattened_activations_m1.numpy().flatten()
         activation_message = pb2.ActivationsRequest()
         activation_message.activations.extend(activations_list)
+        activation_message.batch_size(batch_size)
         response = stub.SendActivation(activation_message)
         # Receber as ativações processadas de M2
         activations_m2 = tf.convert_to_tensor(response.activations, dtype=tf.float32)
-        activations_m2 = tf.reshape(activations_m2, (64, 128)) 
+        activations_m2 = tf.reshape(activations_m2, (batch_size, 128)) 
 
         # Forward pass no cliente (M3)
         with tf.GradientTape(persistent=True) as tape_m2:
@@ -48,6 +44,7 @@ def train_step(model_m1, model_m3, x_batch, y_batch, batch, optimizer, epoch, st
             predictions = model_m3(activations_m2, training = True)
             loss        = tf.keras.losses.sparse_categorical_crossentropy(y_batch, predictions)
             loss        = tf.reduce_mean(loss)
+            acc         = tf.keras.metrics.SparseCategoricalAccuracy(y_batch, predictions)
 
     # Backpropagation no cliente (M3)
     grads_m3 = tape_m2.gradient(loss, model_m3.trainable_variables)
@@ -59,15 +56,21 @@ def train_step(model_m1, model_m3, x_batch, y_batch, batch, optimizer, epoch, st
     # Enviar gradientes das ativações de M2 para o servidor processar o backpropagation em M2
     gradient_message = pb2.GradientsRequest()
     gradient_message.gradients.extend(grads_activations_m2.numpy().flatten())
+    gradient_message.batch_size(batch_size)
     response2 = stub.SendGradient(gradient_message)
     # Opcional: Receber gradientes para M1 e atualizar pesos no cliente (M1)
     activations_grad = tf.convert_to_tensor(response2.gradients, dtype=tf.float32)
-    activations_grad = tf.reshape(activations_grad, (64, 15, 15, 32))
+    activations_grad = tf.reshape(activations_grad, (batch_size, 15, 15, 32))
     gradients_M1 = tape_m1.gradient(activations_m1, model_m1.trainable_variables, output_gradients=activations_grad)
 
     optimizer_m1 = tf.keras.optimizers.Adam()
     optimizer_m1.apply_gradients(zip(gradients_M1, model_m1.trainable_variables))
-    
+
+    if (step %100 == 0):
+        print(f"Step {epoch} - Loss: {loss.numpy()} - Acc: {acc.numpy()}")
+        with open('results.csv', 'a') as f:
+            f.write(f"{epoch}, {step}, {loss}, {acc}\n")
+
 
 def main():
 
@@ -92,13 +95,13 @@ def main():
         batch_size = 64
         n_batches  = X_train.shape[0]//batch_size
         
-        for batch in range(n_batches):
-            print(f"Epoch {epoch} - Batch {batch}/{n_batches}")
+        for step in range(n_batches):
+            print(f"Epoch {epoch} - Batch {step}/{n_batches}")
             
-            X_batch  = X_train[batch_size * batch : batch_size * (batch+1)]
-            y_batch  = y_train[batch_size * batch : batch_size * (batch+1)]
+            X_batch  = X_train[batch_size * step : batch_size * (step+1)]
+            y_batch  = y_train[batch_size * step : batch_size * (step+1)]
 
-            train_step(partial_model_m1, partial_model_m3, X_batch, y_batch, batch, client_optimizer, epoch, stub)
+            train_step(partial_model_m1, partial_model_m3, X_batch, y_batch, step, client_optimizer, epoch, stub,batch_size)
         
     
 if __name__ == '__main__':
