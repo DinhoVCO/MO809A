@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package splitlearning;
+
+message  ActivationsRequest{
+    repeated float activations = 1;
+}
+
+message ActivationsResponse {
+    repeated float activations = 1;
+}
+
+message  GradientsRequest{
+    repeated float gradients = 1;
+}
+
+message GradientsResponse {
+    repeated float gradients = 1;
+}
+
+service SplitLearning {
+    rpc SendActivation (ActivationsRequest) returns (ActivationsResponse);
+    rpc SendGradient (GradientsRequest) returns (GradientsResponse);
+}
