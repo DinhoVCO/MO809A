@@ -9,6 +9,8 @@ import time
 import pandas as pd
 import os
 import numpy as np
+import warnings
+warnings.filterwarnings("ignore")
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
