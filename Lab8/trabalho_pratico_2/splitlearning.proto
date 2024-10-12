@@ -4,7 +4,8 @@ package splitlearning;
 
 message  ActivationsRequest{
     repeated float activations = 1;
-    int32 batch_size           = 3;
+    int32 batch_size           = 2;
+    int32 client_id = 3;
 }
 
 message ActivationsResponse {
@@ -13,7 +14,8 @@ message ActivationsResponse {
 
 message  GradientsRequest{
     repeated float gradients = 1;
-    int32 batch_size           = 3;
+    int32 batch_size           = 2;
+    int32 client_id = 3;
 }
 
 message GradientsResponse {

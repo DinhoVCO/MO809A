@@ -35,6 +35,7 @@ def train_step(client_id, model_m1, model_m3, x_batch, y_batch, step, optimizer,
         # Enviar ativações ao servidor para processar M2
         activations_list = flattened_activations_m1.numpy().flatten()
         activation_message = pb2.ActivationsRequest()
+        activation_message.client_id = client_id
         activation_message.activations.extend(activations_list)
         activation_message.batch_size = batch_size
         response = stub.SendActivation(activation_message)
@@ -62,6 +63,7 @@ def train_step(client_id, model_m1, model_m3, x_batch, y_batch, step, optimizer,
     gradient_message = pb2.GradientsRequest()
     gradient_message.gradients.extend(grads_activations_m2.numpy().flatten())
     gradient_message.batch_size = batch_size
+    gradient_message.client_id = client_id
     response2 = stub.SendGradient(gradient_message)
     # Opcional: Receber gradientes para M1 e atualizar pesos no cliente (M1)
     activations_grad = tf.convert_to_tensor(response2.gradients, dtype=tf.float32)
@@ -71,10 +73,9 @@ def train_step(client_id, model_m1, model_m3, x_batch, y_batch, step, optimizer,
     optimizer_m1 = tf.keras.optimizers.Adam()
     optimizer_m1.apply_gradients(zip(gradients_M1, model_m1.trainable_variables))
 
-    if (step %100 == 0):
-        print(f"Epoch {epoch} - Step {step} - Loss: {loss.numpy()} - Acc: {acc.numpy()}")
-        with open(f'results{client_id}.csv', 'a') as f:
-            f.write(f"{epoch}, {step}, {loss}, {acc}\n")
+    print(f" --- Loss: {loss.numpy():.4f} - Acc: {acc.numpy():.4f}")
+    with open(f'results{client_id}.csv', 'a') as f:
+        f.write(f"{epoch}, {step}, {loss}, {acc}\n")
 
 @ray.remote
 def main(client_id, num_clients):
@@ -104,14 +105,14 @@ def main(client_id, num_clients):
             ('grpc.max_receive_message_length', MAX_MESSAGE_LENGTH),
         ])
     stub = pb2_grpc.SplitLearningStub(channel)
-
-    for epoch in range(10):
+    num_epochs = 4
+    for epoch in range(num_epochs):
         batch_size = 64
         n_batches  = X_train.shape[0]//batch_size
         
         for step in range(n_batches):
-            if (step %100 == 0):
-                print(f"Epoch {epoch} - Step {step}/{n_batches}")
+
+            print(f"Epoch {epoch + 1}/{num_epochs} - Step {step + 1}/{n_batches}")
             
             X_batch  = X_train_client[batch_size * step : batch_size * (step+1)]
             y_batch  = y_train_client[batch_size * step : batch_size * (step+1)]
