@@ -290,68 +290,68 @@ def get_evaluate_fn(model_cfg, save_every_round, total_round, save_path):
 
     return evaluate
 
-
 def load_pretrained_model(model_name: str = "EleutherAI/pythia-70m", device: str = "cuda" if torch.cuda.is_available() else "cpu"):
     """
-    Carga el modelo preentrenado de Hugging Face y el tokenizador correspondiente.
+    Carrega o modelo pré-treinado do Hugging Face e o tokenizador correspondente.
 
-    Parámetros:
-        model_name (str): Nombre del modelo preentrenado (por defecto "EleutherAI/pythia-70m").
-        device (str): Dispositivo para cargar el modelo ("cuda" o "cpu").
+    Parâmetros:
+        model_name (str): Nome do modelo pré-treinado (por padrão "EleutherAI/pythia-70m").
+        device (str): Dispositivo para carregar o modelo ("cuda" ou "cpu").
 
     Retorna:
-        model (AutoModelForCausalLM): Modelo preentrenado cargado.
-        tokenizer (AutoTokenizer): Tokenizador correspondiente al modelo.
+        model (AutoModelForCausalLM): Modelo pré-treinado carregado.
+        tokenizer (AutoTokenizer): Tokenizador correspondente ao modelo.
     """
-    # Cargar el tokenizador
-    print(f"Cargando el tokenizador para {model_name}...")
+    # Carregar o tokenizador
+    print(f"Carregando o tokenizador para {model_name}...")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    # Configurar el token de padding
+    # Configurar o token de padding
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # Cargar el modelo preentrenado
-    print(f"Cargando el modelo preentrenado {model_name}...")
+    # Carregar o modelo pré-treinado
+    print(f"Carregando o modelo pré-treinado {model_name}...")
     model = AutoModelForCausalLM.from_pretrained(model_name)
 
-    # Mover el modelo al dispositivo especificado
+    # Mover o modelo para o dispositivo especificado
     model.to(device)
 
-    print(f"El modelo ha sido cargado exitosamente en el dispositivo: {device}")
+    print(f"O modelo foi carregado com sucesso no dispositivo: {device}")
     return model, tokenizer
+
 
 
 def generate_text(model, tokenizer, prompt, max_length=50, temperature=0.7, top_p=0.9, repetition_penalty=1.2):
     """
-    Genera texto utilizando un modelo de lenguaje preentrenado.
+    Gera texto usando um modelo de linguagem pré-treinado.
 
-    Parámetros:
-        model: Modelo preentrenado (e.g., AutoModelForCausalLM).
-        tokenizer: Tokenizador correspondiente al modelo.
-        prompt (str): Texto de entrada para la generación.
-        max_length (int): Longitud máxima del texto generado.
-        temperature (float): Controla la aleatoriedad (menor valor es más conservador).
-        top_p (float): Nucleus sampling, limita la generación a los tokens más probables.
-        repetition_penalty (float): Penaliza repeticiones para evitar texto repetitivo.
+    Parâmetros:
+        model: Modelo pré-treinado (e.g., AutoModelForCausalLM).
+        tokenizer: Tokenizador correspondente ao modelo.
+        prompt (str): Texto de entrada para a geração.
+        max_length (int): Comprimento máximo do texto gerado.
+        temperature (float): Controla a aleatoriedade (valor menor é mais conservador).
+        top_p (float): Nucleus sampling, limita a geração aos tokens mais prováveis.
+        repetition_penalty (float): Penaliza repetições para evitar texto repetitivo.
 
     Retorna:
-        generated_text (str): Texto generado.
+        generated_text (str): Texto gerado.
     """
-    # Configurar el token de padding
+    # Configurar o token de padding
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # Tokenizar el texto de entrada con máscara de atención
+    # Tokenizar o texto de entrada com máscara de atenção
     inputs = tokenizer(prompt, return_tensors="pt", padding=True)
 
-    # Mover el modelo y los datos a GPU si está disponible
+    # Mover o modelo e os dados para GPU, se disponível
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     input_ids = inputs["input_ids"].to(device)
     attention_mask = inputs["attention_mask"].to(device)
 
-    # Generar texto
+    # Gerar texto
     with torch.no_grad():
         outputs = model.generate(
             input_ids=input_ids,
@@ -364,45 +364,46 @@ def generate_text(model, tokenizer, prompt, max_length=50, temperature=0.7, top_
             num_return_sequences=1,
         )
 
-    # Decodificar y retornar el texto generado
+    # Decodificar e retornar o texto gerado
     generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
     return generated_text
 
 
 def load_model_with_lora_adapter(model_name: str, lora_adapter_path: str, device: str = "cuda" if torch.cuda.is_available() else "cpu"):
     """
-    Carga el modelo preentrenado y aplica el adaptador LoRA.
+    Carrega o modelo pré-treinado e aplica o adaptador LoRA.
 
-    Parámetros:
-        model_name (str): Nombre del modelo preentrenado (e.g., "EleutherAI/pythia-70m").
-        lora_adapter_path (str): Ruta a la carpeta del adaptador LoRA guardado.
-        device (str): Dispositivo para cargar el modelo ("cuda" o "cpu").
+    Parâmetros:
+        model_name (str): Nome do modelo pré-treinado (e.g., "EleutherAI/pythia-70m").
+        lora_adapter_path (str): Caminho para a pasta do adaptador LoRA salvo.
+        device (str): Dispositivo para carregar o modelo ("cuda" ou "cpu").
 
     Retorna:
-        model (PeftModel): Modelo combinado con el adaptador LoRA.
-        tokenizer (AutoTokenizer): Tokenizador correspondiente al modelo.
+        model (PeftModel): Modelo combinado com o adaptador LoRA.
+        tokenizer (AutoTokenizer): Tokenizador correspondente ao modelo.
     """
-    # Cargar el tokenizador
-    print(f"Cargando el tokenizador para {model_name}...")
+    # Carregar o tokenizador
+    print(f"Carregando o tokenizador para {model_name}...")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    # Configurar el token de padding si no está definido
+    # Configurar o token de padding, se não estiver definido
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # Cargar el modelo preentrenado
-    print(f"Cargando el modelo preentrenado {model_name}...")
+    # Carregar o modelo pré-treinado
+    print(f"Carregando o modelo pré-treinado {model_name}...")
     model = AutoModelForCausalLM.from_pretrained(model_name)
 
-    # Cargar el adaptador LoRA
-    print(f"Aplicando el adaptador LoRA desde {lora_adapter_path}...")
+    # Carregar o adaptador LoRA
+    print(f"Aplicando o adaptador LoRA de {lora_adapter_path}...")
     model = PeftModel.from_pretrained(model, lora_adapter_path)
 
-    # Mover el modelo al dispositivo especificado
+    # Mover o modelo para o dispositivo especificado
     model.to(device)
 
-    # Verificar los parámetros entrenables
+    # Verificar os parâmetros treináveis
     model.print_trainable_parameters()
 
-    print("El modelo combinado con el adaptador LoRA ha sido cargado exitosamente.")
+    print("O modelo combinado com o adaptador LoRA foi carregado com sucesso.")
     return model, tokenizer
+
