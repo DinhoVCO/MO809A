@@ -2,6 +2,9 @@
 
 Este projeto implementa um sistema de treinamento com múltiplos clientes e um único servidor, seguindo as especificações apresentadas no laboratório. As principais modificações foram realizadas para suportar a execução distribuída e a implementação de um treinamento de *Split-Learning* no formato *U-Shaped*.
 
+
+![Descripción de la imagen](./img/Figure_1.png)
+
 ## Tarefas Realizadas
 
 1. **Permitir a execução de múltiplos clientes**  
@@ -24,5 +27,3 @@ Este projeto implementa um sistema de treinamento com múltiplos clientes e um �
 - No treinamento *U-Shaped*, os clientes possuem tanto os dados quanto os rótulos, enquanto o servidor é responsável por processar apenas as camadas intermediárias do modelo.
 - Três modelos (M1, M2 e M3) foram utilizados para dividir o processo de treinamento entre os clientes e o servidor, de forma que o fluxo de ativação e de gradientes seja compartilhado entre ambas as partes durante o processo de treinamento.
 
-
-![Descripción de la imagen](./img/Figure_1.png)
